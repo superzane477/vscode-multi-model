@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { SidebarProvider } from "./sidebar/SidebarProvider";
-import { AVAILABLE_MODELS } from "./types";
+import { DEFAULT_MODELS } from "./types";
 
 let sidebarProvider: SidebarProvider;
 
@@ -41,7 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("vscode-multi-model.switchModel", async () => {
-      const items = AVAILABLE_MODELS.map((m) => ({
+      const items = DEFAULT_MODELS.map((m) => ({
         label: m.name,
         description: m.description,
         id: m.id,

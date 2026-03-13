@@ -1,45 +1,85 @@
 (function () {
-  const vscode = acquireVsCodeApi();
+  var vscode;
+  try {
+    vscode = acquireVsCodeApi();
+  } catch (e) {
+    return;
+  }
 
-  const chatMessages = document.getElementById("chat-messages");
-  const messageInput = document.getElementById("message-input");
-  const sendBtn = document.getElementById("send-btn");
-  const modelSelect = document.getElementById("model-select");
+  var chatMessages = document.getElementById("chat-messages");
+  var messageInput = document.getElementById("message-input");
+  var sendBtn = document.getElementById("send-btn");
+  var modelSelect = document.getElementById("model-select");
+  var refreshBtn = document.getElementById("refresh-btn");
+  var newChatBtn = document.getElementById("new-chat-btn");
+  var contextToggleBtn = document.getElementById("context-toggle-btn");
+  var statusBar = document.getElementById("status-bar");
 
-  let currentAssistantEl = null;
-  let isLoading = false;
+  var currentAssistantEl = null;
+  var isLoading = false;
+  var shareContext = true;
 
   sendBtn.addEventListener("click", sendMessage);
-  messageInput.addEventListener("keydown", (e) => {
+  messageInput.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   });
 
-  modelSelect.addEventListener("change", () => {
-    vscode.postMessage({ type: "switchModel", modelId: modelSelect.value });
+  modelSelect.addEventListener("change", function () {
+    vscode.postMessage({ type: "switchModel", modelId: modelSelect.value, shareContext: shareContext });
+    setStatus("Switched to " + modelSelect.options[modelSelect.selectedIndex].textContent);
   });
 
+  refreshBtn.addEventListener("click", function () {
+    setStatus("Refreshing models...");
+    vscode.postMessage({ type: "refreshModels" });
+  });
+
+  newChatBtn.addEventListener("click", function () {
+    vscode.postMessage({ type: "newChat" });
+    clearChat();
+    setStatus("New chat started");
+  });
+
+  contextToggleBtn.addEventListener("click", function () {
+    shareContext = !shareContext;
+    contextToggleBtn.className = shareContext ? "toggle-on" : "toggle-off";
+    contextToggleBtn.title = shareContext ? "Context shared: new model sees previous chat" : "Context isolated: new model starts fresh";
+    setStatus(shareContext ? "Context sharing ON" : "Context sharing OFF");
+  });
+
+  function clearChat() {
+    chatMessages.innerHTML = "";
+    currentAssistantEl = null;
+    isLoading = false;
+    sendBtn.disabled = false;
+  }
+
+  function setStatus(text) {
+    if (statusBar) statusBar.textContent = text;
+  }
+
   function sendMessage() {
-    const text = messageInput.value.trim();
+    var text = messageInput.value.trim();
     if (!text || isLoading) return;
 
-    vscode.postMessage({ type: "sendMessage", text });
+    vscode.postMessage({ type: "sendMessage", text: text });
     messageInput.value = "";
     messageInput.focus();
   }
 
   function addMessage(role, text) {
-    const div = document.createElement("div");
+    var div = document.createElement("div");
     div.className = "message " + role;
 
-    const label = document.createElement("div");
+    var label = document.createElement("div");
     label.className = "message-label";
     label.textContent = role === "user" ? "You" : "AI";
     div.appendChild(label);
 
-    const content = document.createElement("div");
+    var content = document.createElement("div");
     content.innerHTML = formatContent(text);
     div.appendChild(content);
 
@@ -49,7 +89,7 @@
   }
 
   function showLoading() {
-    const div = document.createElement("div");
+    var div = document.createElement("div");
     div.className = "loading-indicator";
     div.id = "loading";
     div.innerHTML = '<div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div><span>Thinking...</span>';
@@ -58,17 +98,17 @@
   }
 
   function hideLoading() {
-    const el = document.getElementById("loading");
+    var el = document.getElementById("loading");
     if (el) el.remove();
   }
 
   function formatContent(text) {
-    let escaped = text
+    var escaped = text
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
-    escaped = escaped.replace(/```(\w*)\n?([\s\S]*?)```/g, function (_, lang, code) {
+    escaped = escaped.replace(/```(\w*)\n?([\s\S]*?)```/g, function (match, lang, code) {
       return "<pre><code>" + code.trim() + "</code></pre>";
     });
 
@@ -78,18 +118,24 @@
     return escaped;
   }
 
-  window.addEventListener("message", (event) => {
-    const message = event.data;
+  window.addEventListener("message", function (event) {
+    var message = event.data;
     switch (message.type) {
       case "init":
-        modelSelect.innerHTML = "";
-        message.models.forEach((m) => {
-          const opt = document.createElement("option");
-          opt.value = m.id;
-          opt.textContent = m.name + " - " + m.description;
-          modelSelect.appendChild(opt);
-        });
-        modelSelect.value = message.currentModel;
+        if (message.models && message.models.length > 0) {
+          modelSelect.innerHTML = "";
+          for (var i = 0; i < message.models.length; i++) {
+            var m = message.models[i];
+            var opt = document.createElement("option");
+            opt.value = m.id;
+            opt.textContent = m.description ? (m.name + " - " + m.description) : m.name;
+            modelSelect.appendChild(opt);
+          }
+          if (message.currentModel) {
+            modelSelect.value = message.currentModel;
+          }
+          setStatus(message.models.length + " models loaded");
+        }
         break;
 
       case "userMessage":
@@ -111,14 +157,10 @@
           hideLoading();
           currentAssistantEl = addMessage("assistant", "");
         }
-        const contentEl = currentAssistantEl.querySelector("div:last-child");
-        contentEl.innerHTML = formatContent(
-          (contentEl.getAttribute("data-raw") || "") + message.text
-        );
-        contentEl.setAttribute(
-          "data-raw",
-          (contentEl.getAttribute("data-raw") || "") + message.text
-        );
+        var contentEl = currentAssistantEl.querySelector("div:last-child");
+        var raw = (contentEl.getAttribute("data-raw") || "") + message.text;
+        contentEl.setAttribute("data-raw", raw);
+        contentEl.innerHTML = formatContent(raw);
         chatMessages.scrollTop = chatMessages.scrollHeight;
         break;
 
@@ -134,5 +176,6 @@
     }
   });
 
+  setStatus("Connecting...");
   vscode.postMessage({ type: "ready" });
 })();

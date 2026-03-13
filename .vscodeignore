@@ -2,10 +2,13 @@
 .vscode-test/**
 src/**
 tests/**
-node_modules/**
+.git/**
 .gitignore
 .env
-.env.example
+env.example
 tsconfig.json
 **/*.ts
 **/*.map
+build.sh
+build.bat
+reddit_draft.md

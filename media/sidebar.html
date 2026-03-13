@@ -9,8 +9,15 @@
   <div class="container">
     <div class="model-selector">
       <label for="model-select">Model:</label>
-      <select id="model-select"></select>
+      <select id="model-select">
+        <option value="gpt-5.4">GPT-5.4</option>
+        <option value="claude-sonnet-4.6">Claude Sonnet 4.6</option>
+      </select>
+      <button id="refresh-btn" title="Refresh model list">↻</button>
+      <button id="new-chat-btn" title="New chat">+</button>
+      <button id="context-toggle-btn" class="toggle-on" title="Share context across models">ctx</button>
     </div>
+    <div id="status-bar" class="status-bar"></div>
 
     <div id="chat-messages" class="chat-messages"></div>
 

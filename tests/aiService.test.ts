@@ -1,4 +1,4 @@
-import { AVAILABLE_MODELS, ChatMessage } from "../src/types";
+import { DEFAULT_MODELS, ChatMessage } from "../src/types";
 import { AIService } from "../src/services/aiService";
 import * as http from "http";
 import * as assert from "assert";
@@ -6,9 +6,21 @@ import * as assert from "assert";
 let server: http.Server;
 let serverPort: number;
 
+const MOCK_REMOTE_MODELS = [
+  { id: "gpt-5.4", name: "GPT-5.4", owned_by: "openai" },
+  { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6", owned_by: "anthropic" },
+  { id: "gemini-3.1-pro", name: "Gemini 3.1 Pro", owned_by: "google" },
+];
+
 function startMockServer(): Promise<void> {
   return new Promise((resolve) => {
     server = http.createServer((req, res) => {
+      if (req.method === "GET" && req.url === "/models") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ data: MOCK_REMOTE_MODELS }));
+        return;
+      }
+
       let body = "";
       req.on("data", (chunk) => (body += chunk));
       req.on("end", () => {
@@ -45,11 +57,22 @@ function startMockServer(): Promise<void> {
   });
 }
 
-async function testModels() {
-  assert.strictEqual(AVAILABLE_MODELS.length, 2);
-  assert.strictEqual(AVAILABLE_MODELS[0].id, "gpt-5.4");
-  assert.strictEqual(AVAILABLE_MODELS[1].id, "claude-sonnet-4.6");
-  console.log("  PASS: model definitions");
+async function testDefaultModels() {
+  assert.strictEqual(DEFAULT_MODELS.length, 2);
+  assert.strictEqual(DEFAULT_MODELS[0].id, "gpt-5.4");
+  assert.strictEqual(DEFAULT_MODELS[1].id, "claude-sonnet-4.6");
+  console.log("  PASS: default model definitions");
+}
+
+async function testFetchModels() {
+  const service = new AIService("test-key", `http://127.0.0.1:${serverPort}`);
+  const models = await service.fetchModels();
+  assert.strictEqual(models.length, 3);
+  assert.strictEqual(models[0].id, "gpt-5.4");
+  assert.strictEqual(models[1].id, "claude-sonnet-4.6");
+  assert.strictEqual(models[2].id, "gemini-3.1-pro");
+  assert.strictEqual(models[2].provider, "google");
+  console.log("  PASS: fetch remote models");
 }
 
 async function testChat() {
@@ -87,7 +110,8 @@ async function main() {
   await startMockServer();
 
   try {
-    await testModels();
+    await testDefaultModels();
+    await testFetchModels();
     await testChat();
     await testStreamChat();
     console.log("\nAll tests passed!");

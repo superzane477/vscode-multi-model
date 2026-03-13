@@ -1,17 +1,32 @@
 import * as vscode from "vscode";
-import * as path from "path";
 import * as fs from "fs";
 import { AIService } from "../services/aiService";
-import { AVAILABLE_MODELS, ChatMessage } from "../types";
+import { DEFAULT_MODELS, ChatMessage, Model } from "../types";
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
   private _view?: vscode.WebviewView;
   private _aiService?: AIService;
   private _messages: ChatMessage[] = [];
   private _currentModel: string;
+  private _models: Model[] = DEFAULT_MODELS;
+  private _disposables: vscode.Disposable[] = [];
 
   constructor(private readonly _extensionUri: vscode.Uri, private readonly _globalState: vscode.Memento) {
-    this._currentModel = this._globalState.get("selectedModel", AVAILABLE_MODELS[0].id);
+    this._currentModel = this._globalState.get("selectedModel", DEFAULT_MODELS[0].id);
+
+    this._disposables.push(
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        if (e.affectsConfiguration("multiModelAI")) {
+          this._aiService = undefined;
+          this._sendInitWithDefaults();
+          this._fetchAndUpdateModels();
+        }
+      })
+    );
+  }
+
+  dispose() {
+    this._disposables.forEach((d) => d.dispose());
   }
 
   resolveWebviewView(webviewView: vscode.WebviewView) {
@@ -32,13 +47,21 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         case "switchModel":
           this._currentModel = message.modelId;
           this._globalState.update("selectedModel", message.modelId);
+          if (!message.shareContext) {
+            this._messages = [];
+          }
+          break;
+        case "newChat":
+          this._messages = [];
           break;
         case "ready":
-          webviewView.webview.postMessage({
-            type: "init",
-            models: AVAILABLE_MODELS,
-            currentModel: this._currentModel,
-          });
+          this._sendInitWithDefaults();
+          this._fetchAndUpdateModels();
+          break;
+        case "refreshModels":
+          this._aiService = undefined;
+          this._sendInitWithDefaults();
+          this._fetchAndUpdateModels();
           break;
       }
     });
@@ -53,6 +76,30 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       ? `Explain the following code:\n\n\`\`\`\n${code}\n\`\`\``
       : `${action}:\n\n\`\`\`\n${code}\n\`\`\``;
     await this._handleUserMessage(prompt);
+  }
+
+  private _sendInitWithDefaults() {
+    if (!this._models.find((m) => m.id === this._currentModel) && this._models.length > 0) {
+      this._currentModel = this._models[0].id;
+    }
+    this._view?.webview.postMessage({
+      type: "init",
+      models: this._models,
+      currentModel: this._currentModel,
+    });
+  }
+
+  private async _fetchAndUpdateModels() {
+    try {
+      const service = this._getAIService();
+      const remoteModels = await service.fetchModels();
+      if (remoteModels.length > 0) {
+        this._models = remoteModels;
+        this._sendInitWithDefaults();
+      }
+    } catch {
+      // keep current models
+    }
   }
 
   private _getAIService(): AIService {

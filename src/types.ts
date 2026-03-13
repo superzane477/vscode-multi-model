@@ -26,7 +26,7 @@ export interface StreamChunk {
   done: boolean;
 }
 
-export const AVAILABLE_MODELS: Model[] = [
+export const DEFAULT_MODELS: Model[] = [
   {
     id: "gpt-5.4",
     name: "GPT-5.4",
