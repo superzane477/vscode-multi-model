@@ -1,67 +1,92 @@
 # Multi-Model AI Assistant for VS Code
 
-A VS Code extension that lets you switch between AI models via a sidebar dropdown and chat with them directly in your editor.
+A VS Code extension that connects to any OpenAI-compatible API and lets you switch between 100+ AI models on the fly — all from a sidebar chat panel.
 
 ## Features
 
-- **Model Switching**: Quickly switch between GPT-5.4 and Claude Sonnet 4.6 via a dropdown
-- **Sidebar Chat**: Full chat interface in the VS Code sidebar
-- **Streaming Responses**: Real-time streaming output from AI models
-- **Code Actions**: Right-click on selected code to "Ask AI" or "Explain Code"
-- **Theme Adaptive**: Automatically adapts to your VS Code light/dark theme
+- **Auto-Discover Models**: Automatically fetches available models from your API endpoint. No hardcoding needed
+- **Live Model Switching**: Switch models mid-conversation via a dropdown. The new model sees the full chat history for seamless context continuity
+- **Streaming Responses**: Real-time token-by-token output, just like ChatGPT
+- **Code Actions**: Select code in the editor, right-click "Ask AI" or "Explain Code" — the snippet is sent directly to the chat
+- **New Chat**: Hit `+` to start a fresh conversation at any time
+- **Theme Adaptive**: Follows your VS Code dark/light theme automatically
 
-## Supported Models
+## Compatible API Providers
 
-| Model | Best For |
-|-------|---------|
-| GPT-5.4 | General tasks, reasoning, creative writing |
-| Claude Sonnet 4.6 | Code generation, technical analysis |
+Works with any service that supports the OpenAI Chat Completions format:
+
+| Provider | Base URL |
+|----------|----------|
+| ZenMux | `https://zenmux.ai/api/v1` |
+| OpenRouter | `https://openrouter.ai/api/v1` |
+| OpenAI | `https://api.openai.com/v1` |
+| Any OpenAI-compatible | `https://your-provider/v1` |
+
+## Install
+
+### From VSIX
+
+```bash
+# Build it yourself
+./build.sh
+
+# Or install a pre-built .vsix
+code --install-extension vscode-multi-model-0.2.0.vsix
+```
+
+### From Source (Development)
+
+```bash
+git clone <repo-url>
+cd vscode-multi-model
+npm install
+npm run compile
+```
+
+Then press `F5` in VS Code to launch a development host with the extension loaded.
 
 ## Setup
 
-1. Clone the repository:
-   ```bash
-   git clone <repo-url>
-   cd vscode-multi-model
-   npm install
-   ```
+After installation, open VS Code Settings and configure:
 
-2. Configure your API credentials in VS Code Settings:
-   - `multiModelAI.apiKey` — Your API key
-   - `multiModelAI.apiBaseUrl` — Base URL (default: `https://api.example.com/v1`)
+| Setting | Description |
+|---------|-------------|
+| `multiModelAI.apiKey` | Your API key |
+| `multiModelAI.apiBaseUrl` | API base URL (e.g. `https://zenmux.ai/api/v1`) |
 
-   Or copy `env.example` to `.env` and fill in your values.
-
-3. Build and run:
-   ```bash
-   npm run compile
-   ```
-   Then press `F5` in VS Code to launch the extension in a development host.
+The model list loads automatically once both fields are set. Click `↻` to refresh manually.
 
 ## Usage
 
-1. Click the AI icon in the activity bar to open the sidebar
-2. Select your preferred model from the dropdown
-3. Type a message and press Enter or click Send
-4. To analyze code: select code in the editor, right-click, and choose "Ask AI" or "Explain Code with AI"
+1. Click the **AI Assistant** icon in the activity bar (left sidebar)
+2. Pick a model from the dropdown (auto-populated from your API)
+3. Type a message and press **Enter** (or click **Send**)
+4. Switch models anytime — the conversation history carries over
+5. Click **+** to start a new chat
+
+### Code Actions
+
+Select code in the editor → right-click:
+- **Ask AI** — send the selection with a custom prompt
+- **Explain Code with AI** — get an explanation of the selected code
 
 ## Architecture
 
 ```
 src/
-├── extension.ts           # Extension entry point, registers commands and views
+├── extension.ts            # Entry point: registers commands, views
 ├── sidebar/
-│   └── SidebarProvider.ts # Webview sidebar provider (model selection + chat)
+│   └── SidebarProvider.ts  # Webview provider: model selector + chat UI
 ├── services/
-│   └── aiService.ts       # Unified AI API client (OpenAI-compatible format)
-└── types.ts               # Type definitions and model list
+│   └── aiService.ts        # API client: chat, streaming, model discovery
+└── types.ts                # Shared types and default model list
 media/
-├── sidebar.html           # Sidebar webview markup
-├── sidebar.css            # VS Code theme-adaptive styles
-└── sidebar.js             # Frontend interaction logic
+├── sidebar.html            # Chat UI markup
+├── sidebar.css             # VS Code theme-aware styles
+└── sidebar.js              # Frontend logic
 ```
 
-The extension uses the OpenAI-compatible Chat Completions API format (`/chat/completions`). Switching models is done by changing the `model` parameter — no endpoint changes needed.
+Uses the OpenAI-compatible `/chat/completions` endpoint. Model switching is done by changing the `model` parameter — one base URL handles all providers.
 
 ## Development
 
@@ -69,8 +94,10 @@ The extension uses the OpenAI-compatible Chat Completions API format (`/chat/com
 npm run compile   # Build
 npm run watch     # Watch mode
 npm test          # Run tests
+./build.sh        # Build + package .vsix
 ```
 
 ## License
 
 MIT
+# vscode-multi-model
