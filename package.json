@@ -1,0 +1,88 @@
+{
+  "name": "vscode-multi-model",
+  "displayName": "Multi-Model AI Assistant",
+  "description": "Switch between AI models via a sidebar dropdown and chat with them directly in VS Code",
+  "version": "0.1.0",
+  "publisher": "multi-model",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "multi-model-sidebar",
+          "title": "AI Assistant",
+          "icon": "$(hubot)"
+        }
+      ]
+    },
+    "views": {
+      "multi-model-sidebar": [
+        {
+          "type": "webview",
+          "id": "multi-model-sidebar-view",
+          "name": "Chat"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "vscode-multi-model.askAI",
+        "title": "Ask AI"
+      },
+      {
+        "command": "vscode-multi-model.switchModel",
+        "title": "Switch AI Model"
+      },
+      {
+        "command": "vscode-multi-model.explainCode",
+        "title": "Explain Code with AI"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "vscode-multi-model.askAI",
+          "group": "navigation"
+        },
+        {
+          "command": "vscode-multi-model.explainCode",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Multi-Model AI",
+      "properties": {
+        "multiModelAI.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for the AI service"
+        },
+        "multiModelAI.apiBaseUrl": {
+          "type": "string",
+          "default": "https://api.example.com/v1",
+          "description": "Base URL for the AI API"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/tests/aiService.test.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.3"
+  }
+}
