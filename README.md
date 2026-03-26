@@ -9,6 +9,7 @@ A VS Code extension that connects to any OpenAI-compatible API and lets you swit
 - **Streaming Responses**: Real-time token-by-token output, just like ChatGPT
 - **Code Actions**: Select code in the editor, right-click "Ask AI" or "Explain Code" — the snippet is sent directly to the chat
 - **New Chat**: Hit `+` to start a fresh conversation at any time
+- **Context Toggle**: `ctx` button controls whether the new model sees previous chat history or starts fresh
 - **Theme Adaptive**: Follows your VS Code dark/light theme automatically
 
 ## Compatible API Providers
@@ -72,6 +73,75 @@ Select code in the editor → right-click:
 
 ## Architecture
 
+```mermaid
+graph TB
+    subgraph VS Code
+        A[Activity Bar Icon] --> B[Sidebar Webview]
+        B --> C[Model Dropdown]
+        B --> D[Chat Interface]
+        B --> E[Toolbar: ↻ + ctx]
+        F[Editor Context Menu] -->|Ask AI / Explain Code| D
+    end
+
+    subgraph Extension Host
+        G[extension.ts] -->|register| B
+        G -->|register| F
+        H[SidebarProvider] -->|postMessage| B
+        H --> I[AIService]
+        I -->|GET /models| J
+        I -->|POST /chat/completions| J
+    end
+
+    subgraph API Provider
+        J[OpenAI-Compatible API]
+        J --> K[GPT Models]
+        J --> L[Claude Models]
+        J --> M[Gemini / Others]
+    end
+
+    D -->|user message| H
+    C -->|switch model| H
+    E -->|refresh / new chat / ctx toggle| H
+
+    style B fill:#2d2d2d,stroke:#007acc,color:#fff
+    style J fill:#2d2d2d,stroke:#4ec9b0,color:#fff
+```
+
+### Data Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant W as Webview (sidebar.js)
+    participant P as SidebarProvider
+    participant S as AIService
+    participant API as API Endpoint
+
+    U->>W: Opens sidebar
+    W->>P: ready
+    P->>W: init (default models)
+    P->>S: fetchModels()
+    S->>API: GET /models
+    API-->>S: model list
+    S-->>P: Model[]
+    P->>W: init (remote models)
+
+    U->>W: Types message + Send
+    W->>P: sendMessage
+    P->>S: streamChat(model, messages)
+    S->>API: POST /chat/completions (stream)
+    loop SSE chunks
+        API-->>S: data: {delta}
+        S-->>P: onChunk
+        P->>W: streamChunk
+        W->>U: Render token
+    end
+    API-->>S: data: [DONE]
+    P->>W: streamEnd
+```
+
+### File Structure
+
 ```
 src/
 ├── extension.ts            # Entry point: registers commands, views
@@ -100,4 +170,3 @@ npm test          # Run tests
 ## License
 
 MIT
-# vscode-multi-model
